@@ -14,6 +14,7 @@
 package main
 
 import (
+	"container/heap"
 	"fmt"
 )
 
@@ -61,9 +62,36 @@ func (h *MiniHeap) Pop() interface{} {
 // mergeSortedChannels объединяет несколько отсортированных каналов в один отсортированный канал
 func mergeSortedChannels(channels ...chan int) chan int {
 	// your code here
-	resCh := make(chan int)
+	out := make(chan int)
+	go func() {
+		defer close(out)
 
-	return resCh
+		// Создание кучи для первого элемента каждого канала
+		h := &MiniHeap{}
+		heap.Init(h)
+		for _, ch := range channels {
+			v, ok := <-ch
+			if !ok {
+				continue // Пропустить закрытые каналы
+			}
+			heap.Push(h, Item{v, ch})
+		}
+
+		// Начинаем сливать каналы
+		for h.Len() > 0 {
+			// Берём минимальный элемент из кучи
+			top := heap.Pop(h).(Item)
+			out <- top.value
+
+			// Пробуем прочитать следующий элемент из канала
+			nextVal, ok := <-top.ch
+			if ok {
+				// Если есть следующее значение, добавляем его в кучу
+				heap.Push(h, Item{nextVal, top.ch})
+			}
+		}
+	}()
+	return out
 }
 
 func main() {
