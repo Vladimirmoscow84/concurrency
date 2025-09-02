@@ -27,6 +27,37 @@ type Item struct {
 // Определяем тип для реализации минимальной кучи
 type MiniHeap []Item
 
+// опрепделяем методы лоя кучи
+
+// Len - возвращает длину
+func (h MiniHeap) Len() int {
+	return len(h)
+}
+
+// Less - определяет, какой элемент меньше другого
+func (h MiniHeap) Less(i, j int) bool {
+	return h[i].value < h[j].value
+}
+
+// Swap - перестановка элементов местами по указанным индексам
+func (h MiniHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
+// Push - добавляет эелемент в кучу
+func (h *MiniHeap) Push(x interface{}) {
+	*h = append(*h, x.(Item))
+}
+
+// Pop - удаляет и возвращает последний элемент из кучи
+func (h *MiniHeap) Pop() interface{} {
+	oldHeap := *h
+	n := len(oldHeap)
+	item := oldHeap[n-1]
+	*h = oldHeap[:n-1]
+	return item
+}
+
 // mergeSortedChannels объединяет несколько отсортированных каналов в один отсортированный канал
 func mergeSortedChannels(channels ...chan int) chan int {
 	// your code here
