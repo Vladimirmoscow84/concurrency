@@ -45,6 +45,7 @@ func add(ctx context.Context, chIn chan int) chan int {
 				select {
 				case <-ctx.Done():
 					fmt.Println("done in add function")
+					return
 				case resChan <- result:
 				}
 			}
@@ -71,6 +72,7 @@ func multiply(ctx context.Context, chIn chan int) chan int {
 				select {
 				case <-ctx.Done():
 					fmt.Println("done in multiply function")
+					return
 				case resChan <- result:
 				}
 			}
@@ -78,6 +80,19 @@ func multiply(ctx context.Context, chIn chan int) chan int {
 	}()
 
 	return resChan
+}
+func fanOut(ctx context.Context, inputCh chan int) []chan int {
+	n := 5 //кол-во воркеров
+	channels := make([]chan int, n)
+
+	for i := range n {
+		channels[i] = add(ctx, inputCh)
+	}
+
+	return channels
+}
+func fanIn(ctx context.Context, channels ...chan int) chan int {
+
 }
 func main() {
 	//задано какое-то множество данных в виде слайса
