@@ -14,7 +14,7 @@ func generator(ctx context.Context, data []int) chan int {
 		for _, v := range data {
 			select {
 			case <-ctx.Done():
-				fmt.Println("exit with context")
+				fmt.Println("done in generator")
 				return
 			case chOut <- v:
 			}
@@ -30,14 +30,21 @@ func add(ctx context.Context, chIn chan int) chan int {
 		for {
 			select {
 			case <-ctx.Done():
-				fmt.Println("exit with context")
+				fmt.Println("done in add function")
 				return
 			case v, ok := <-chIn:
 				if !ok {
 					return
 				}
 				result := v + 2
-				chOut <- result
+				select {
+				case <-ctx.Done():
+					fmt.Println("done in add function")
+					return
+				case chOut <- result:
+
+				}
+
 			}
 		}
 	}()
@@ -51,14 +58,19 @@ func multiply(ctx context.Context, chIn chan int) chan int {
 		for {
 			select {
 			case <-ctx.Done():
-				fmt.Println("exit with context")
+				fmt.Println("done in multiply function")
 				return
 			case v, ok := <-chIn:
 				if !ok {
 					return
 				}
 				result := v * v
-				chOut <- result
+				select {
+				case <-ctx.Done():
+					return
+				case chOut <- result:
+				}
+
 			}
 		}
 	}()
@@ -73,6 +85,6 @@ func main() {
 
 	for v := range resCh {
 		fmt.Println(v)
-		//time.Sleep(300 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 	}
 }
