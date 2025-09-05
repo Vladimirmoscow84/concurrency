@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -42,6 +43,7 @@ func add(ctx context.Context, chIn chan int) chan int {
 					return
 				}
 				result := v + 13
+				time.Sleep(1 * time.Second)
 				select {
 				case <-ctx.Done():
 					fmt.Println("done in add function")
@@ -92,11 +94,49 @@ func fanOut(ctx context.Context, inputCh chan int) []chan int {
 	return channels
 }
 func fanIn(ctx context.Context, channels ...chan int) chan int {
+	resCh := make(chan int)
+	wg := sync.WaitGroup{}
+	for _, channel := range channels {
 
+		wg.Go(func() {
+			for {
+				select {
+				case <-ctx.Done():
+					fmt.Println("done in fanIn")
+					return
+				case v, ok := <-channel:
+					if !ok {
+						return
+					}
+					select {
+					case <-ctx.Done():
+						fmt.Println("done in fanin")
+						return
+					case resCh <- v:
+					}
+				}
+			}
+		})
+	}
+	go func() {
+		wg.Wait()
+		close(resCh)
+	}()
+
+	return resCh
 }
 func main() {
 	//задано какое-то множество данных в виде слайса
 	data := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 9, 8, 7, 6, 5, 4, 3, 2, 1}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(1*time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(2*time.Second))
 	defer cancel()
+	genCh := generator(ctx, data)
+	sliceCh := fanOut(ctx, genCh)
+	resCh := fanIn(ctx, sliceCh...)
+	streamCH := multiply(ctx, resCh)
+
+	for v := range streamCH {
+		fmt.Println(v)
+	}
+
 }
