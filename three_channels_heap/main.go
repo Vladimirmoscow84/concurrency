@@ -46,16 +46,20 @@ func (h MiniHeap) Swap(i, j int) {
 }
 
 // Push - добавляет эелемент в кучу
-func (h *MiniHeap) Push(x interface{}) {
+func (h *MiniHeap) Push(x any) {
 	*h = append(*h, x.(Item))
 }
 
 // Pop - удаляет и возвращает последний элемент из кучи
-func (h *MiniHeap) Pop() interface{} {
-	oldHeap := *h
-	n := len(oldHeap)
-	item := oldHeap[n-1]
-	*h = oldHeap[:n-1]
+func (h *MiniHeap) Pop() any {
+	// oldHeap := *h
+	// n := len(oldHeap)
+	// item := oldHeap[n-1]
+	// *h = oldHeap[:n-1]
+	// return item
+
+	item := (*h)[len(*h)-1]
+	*h = (*h)[:len(*h)-1]
 	return item
 }
 
