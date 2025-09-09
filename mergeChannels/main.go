@@ -17,6 +17,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -24,28 +25,40 @@ import (
 func mergeChannels(ctx context.Context, channels ...chan string) chan string {
 	chOut := make(chan string)
 
-	wg:=sync.WaitGroup{}
-	mu:=sync.Mutex{}
+	wg := sync.WaitGroup{}
+	mu := sync.Mutex{}
+	storage := make(map[string]bool)
 
-	for _,channel:=range channels{
-		wg.Go(func(){
-			for{
-				select{
-				case<-ctx.Done():
+	for _, channel := range channels {
+		wg.Go(func() {
+			for {
+				select {
+				case <-ctx.Done():
 					return
-				case v,ok:=<-channel:
-					if !ok{
+				case v, ok := <-channel:
+					if !ok {
 						return
 					}
-					select{
-					case <-ctx.Done():
-						return
-						case 
+					_, exist := storage[v]
+					if !exist {
+						mu.Lock()
+						storage[v] = true
+						mu.Unlock()
+						select {
+						case <-ctx.Done():
+							return
+						case chOut <- v:
+						}
 					}
 				}
 			}
 		})
+
 	}
+	go func() {
+		wg.Wait()
+		close(chOut)
+	}()
 
 	return chOut
 }
@@ -78,5 +91,11 @@ func main() {
 		ch3 <- "spartak2"
 		ch3 <- "zalupa"
 	}()
+
+	stream := mergeChannels(ctx, ch1, ch2, ch3)
+
+	for v := range stream {
+		fmt.Println(v)
+	}
 
 }
