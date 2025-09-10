@@ -101,10 +101,8 @@ func main() {
 		ch3 <- "zalupa"
 	}()
 
-	stream := mergeChannels(ctx, ch1, ch2, ch3)
-
-	for v := range stream {
-		fmt.Println(v)
+	for stream := range mergeChannels(ctx, ch1, ch2, ch3) {
+		fmt.Println(stream)
 	}
 
 }
