@@ -13,8 +13,20 @@ package main
 
 import (
 	"context"
+	"sync"
 	"time"
 )
+
+// для сортировки поступающих данных из каналов создаем миниКучу, состоящую из структур типа(данные-канал)
+// для проверки повторяемости данных создаем хранилище (мапу) уникальных значений данных из каналов
+func uniqueMergeChannels(ctx context.Context, channels ...chan int) chan int {
+	chOut := make(chan int)
+	mu := sync.Mutex{}
+	wg := sync.WaitGroup{}
+	storage := make(map[int]struct{})
+
+	return chOut
+}
 
 func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
