@@ -34,22 +34,23 @@ func mergeChannels(ctx context.Context, channels ...chan string) chan string {
 			for {
 				select {
 				case <-ctx.Done():
+					fmt.Println("exit with context Timeout")
 					return
 				case v, ok := <-channel:
 					if !ok {
 						return
 					}
-					_, exist := storage[v]
-					if !exist {
-						mu.Lock()
+					mu.Lock()
+					if _, exist := storage[v]; !exist {
 						storage[v] = true
-						mu.Unlock()
 						select {
 						case <-ctx.Done():
+							fmt.Println("exit with context Timeout")
 							return
 						case chOut <- v:
 						}
 					}
+					mu.Unlock()
 				}
 			}
 		})
@@ -63,7 +64,7 @@ func mergeChannels(ctx context.Context, channels ...chan string) chan string {
 	return chOut
 }
 func main() {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	ch1 := make(chan string)
 	ch2 := make(chan string)
@@ -72,8 +73,11 @@ func main() {
 	go func() {
 		defer close(ch1)
 		ch1 <- "ssd"
+		//time.Sleep(500 * time.Millisecond)
 		ch1 <- "qwe"
+		//time.Sleep(500 * time.Millisecond)
 		ch1 <- "spartak"
+		//time.Sleep(500 * time.Millisecond)
 		ch1 <- "ssd"
 	}()
 
@@ -81,14 +85,19 @@ func main() {
 		defer close(ch2)
 		ch2 <- "opi"
 		ch2 <- "jgjhghlklh"
+		//time.Sleep(200 * time.Millisecond)
 		ch2 <- "spartak1"
 		ch2 <- "qwe"
+		//time.Sleep(500 * time.Millisecond)
 	}()
 	go func() {
 		defer close(ch3)
+		//time.Sleep(200 * time.Millisecond)
 		ch3 <- "qwerty"
 		ch3 <- "dfghgfd"
+		//time.Sleep(700 * time.Millisecond)
 		ch3 <- "spartak2"
+		//time.Sleep(200 * time.Millisecond)
 		ch3 <- "zalupa"
 	}()
 
