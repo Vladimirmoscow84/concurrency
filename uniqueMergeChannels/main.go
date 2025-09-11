@@ -19,6 +19,29 @@ import (
 
 // для сортировки поступающих данных из каналов создаем миниКучу, состоящую из структур типа(данные-канал)
 // для проверки повторяемости данных создаем хранилище (мапу) уникальных значений данных из каналов
+type Item struct {
+	v  int
+	ch chan int
+}
+type miniHeap []Item
+
+func (h miniHeap) Len() int {
+	return len(h)
+}
+func (h miniHeap) Less(i, j int) bool {
+	return h[j].v < h[j].v
+}
+func (h miniHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+func (h *miniHeap) Push(x any) {
+	*h = append(*h, x.(Item))
+}
+func (h *miniHeap) Pop() any {
+	top := (*h)[len(*h)-1]
+	*h = (*h)[:len(*h)-1]
+	return top
+}
 func uniqueMergeChannels(ctx context.Context, channels ...chan int) chan int {
 	chOut := make(chan int)
 	mu := sync.Mutex{}
