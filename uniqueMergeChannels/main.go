@@ -12,8 +12,9 @@
 package main
 
 import (
+	"container/heap"
 	"context"
-	"sync"
+	"fmt"
 	"time"
 )
 
@@ -29,7 +30,7 @@ func (h miniHeap) Len() int {
 	return len(h)
 }
 func (h miniHeap) Less(i, j int) bool {
-	return h[j].v < h[j].v
+	return h[i].v < h[j].v
 }
 func (h miniHeap) Swap(i, j int) {
 	h[i], h[j] = h[j], h[i]
@@ -44,10 +45,47 @@ func (h *miniHeap) Pop() any {
 }
 func uniqueMergeChannels(ctx context.Context, channels ...chan int) chan int {
 	chOut := make(chan int)
-	mu := sync.Mutex{}
-	wg := sync.WaitGroup{}
 	storage := make(map[int]struct{})
 
+	go func() {
+		defer close(chOut)
+		h := &miniHeap{}
+		heap.Init(h)
+		for _, channel := range channels {
+
+			select {
+			case <-ctx.Done():
+				return
+			case v, ok := <-channel:
+				if !ok {
+					continue
+				}
+				heap.Push(h, Item{v, channel})
+			}
+		}
+
+		for h.Len() > 0 {
+			top := heap.Pop(h).(Item)
+			value := top.v
+			if _, exist := storage[value]; !exist {
+				storage[value] = struct{}{}
+				select {
+				case <-ctx.Done():
+					return
+				case chOut <- value:
+				}
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case nextVal, ok := <-top.ch:
+				if ok {
+					heap.Push(h, Item{nextVal, top.ch})
+
+				}
+			}
+		}
+	}()
 	return chOut
 }
 
@@ -92,5 +130,9 @@ func main() {
 		ch4 <- 23
 		ch4 <- 25
 	}()
+
+	for v := range uniqueMergeChannels(ctx, ch1, ch2, ch3, ch4) {
+		fmt.Println(v)
+	}
 
 }
