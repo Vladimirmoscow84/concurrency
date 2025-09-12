@@ -13,19 +13,47 @@
 */
 package main
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+	"time"
+)
 
 var mu sync.Mutex
 var guestInCafe int
 
 func guestsInCafe(semafore chan struct{}, guest int) {
 	semafore <- struct{}{}
+	defer func() {
+		<-semafore
+	}()
+	mu.Lock()
+	guestInCafe++
+	fmt.Printf("Гость #%d зашел в кафе. Всего гостей в кафе: %d.\n", guest, guestInCafe)
+	mu.Unlock()
 
+	time.Sleep(1 * time.Second)
+
+	mu.Lock()
+	guestInCafe--
+	fmt.Printf("Гость #%d вышел из кафе. Всего в кафе гостей: %d.\n", guest, guestInCafe)
+	mu.Unlock()
 }
 
 func main() {
 	tables := 4
 	guests := 20
 	semafore := make(chan struct{}, tables)
+	wg := sync.WaitGroup{}
+
+	for i := 1; i <= guests; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			guestsInCafe(semafore, i)
+		}()
+	}
+	wg.Wait()
+	fmt.Println("Все гости вышли из кафе")
 
 }
