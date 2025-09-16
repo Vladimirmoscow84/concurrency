@@ -30,9 +30,87 @@ All requests processed or timed out.
 */
 package main
 
-type Task struct {
+import (
+	"fmt"
+	"log"
+	"sync"
+	"sync/atomic"
+	"time"
+)
+
+type Request struct {
 	id   int
 	x, y float64
 }
+type Result struct {
+	request Request
+	area    float64
+	err     error
+}
 
-func main() {}
+type PoolManager struct {
+	reqCh   chan Request
+	resCh   chan Result
+	doneCh  chan struct{}
+	workers uint32
+	wg      sync.WaitGroup
+}
+
+const (
+	workers     = 3
+	buffSize    = 10
+	loadService = 10
+	timeout     = 5 * time.Second
+)
+
+func newPoolManager() *PoolManager {
+
+	return &PoolManager{
+		reqCh:   make(chan Request, buffSize),
+		resCh:   make(chan Result),
+		doneCh:  make(chan struct{}),
+		workers: workers,
+	}
+}
+func (pm *PoolManager) worker() {
+	defer pm.wg.Done()
+	for {
+		select {
+		case req, ok := <-pm.reqCh:
+			if !ok {
+				return
+			}
+			timer := time.AfterFunc(timeout, func() {
+				pm.resCh <- Result{req, 0, fmt.Errorf("time is over")}
+			})
+			area := req.x * req.y
+			timer.Stop()
+			pm.resCh <- Result{req, area, nil}
+
+		case <-pm.doneCh:
+			return
+
+		}
+	}
+}
+func (pm *PoolManager) start() {
+	for i := 1; i <= int(atomic.LoadUint32(&pm.workers)); i++ {
+		pm.wg.Add(1)
+		go pm.worker()
+	}
+
+	log.Println("Pool manager started")
+}
+
+func (pm *PoolManager) stop() {
+	close(pm.doneCh)
+	pm.wg.Wait()
+	log.Println("Pool manage stopped")
+}
+func (pm *PoolManager) getresults() chan Result {
+
+	return pm.resCh
+}
+func main() {
+
+}
