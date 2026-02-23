@@ -1,9 +1,10 @@
-/*Напиши реализацию Promise:
+/*
+Напиши реализацию Promise:
 Функция promise принимает контекст и функцию, которая возвращает значение и ошибку
 Возвращает канал, из которого можно прочитать результат (структура с value и error)
 Функция выполняется асинхронно
-Контекст должен отменять выполнение*/
-
+Контекст должен отменять выполнение
+*/
 package main
 
 import (
@@ -29,37 +30,41 @@ func promise(ctx context.Context, f func(context.Context) (int, error)) <-chan R
 	out := make(chan Result, 1)
 	go func() {
 		defer close(out)
-		resCh := make(chan Result)
+		fRes := make(chan Result)
 		go func() {
-			value, err := longTask(ctx)
-			resCh <- Result{value, err}
+			val, err := f(ctx)
+			select {
+			case <-ctx.Done():
+				return
+			case fRes <- Result{val, err}:
+			}
 		}()
 
 		select {
 		case <-ctx.Done():
 			out <- Result{0, ctx.Err()}
-		case result := <-resCh:
+		case value := <-fRes:
 			select {
 			case <-ctx.Done():
 				out <- Result{0, ctx.Err()}
-			case out <- result:
+			case out <- value:
 			}
 		}
 
 	}()
 	return out
 }
-
 func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	resChan := promise(ctx, longTask)
+	resCh := promise(ctx, longTask)
 
-	result := <-resChan
+	result := <-resCh
 	if result.Err != nil {
 		fmt.Println("Error: ", result.Err)
 	} else {
 		fmt.Println("result: ", result.Value)
 	}
+	fmt.Println("End of programm")
 }
