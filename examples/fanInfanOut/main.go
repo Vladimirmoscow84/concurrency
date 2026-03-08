@@ -12,52 +12,46 @@ func generator(ctx context.Context, data []int) chan int {
 	out := make(chan int)
 	go func() {
 		defer close(out)
-		for _, value := range data {
+		for _, v := range data {
 			select {
 			case <-ctx.Done():
 				return
-			case out <- value:
+			case out <- v:
 			}
 		}
 	}()
-
 	return out
 }
-
-func add(ctx context.Context, chIn <-chan int) chan int {
-	out := make(chan int)
-	go func() {
-		defer close(out)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case v, ok := <-chIn:
-				if !ok {
-					return
-				}
-				res := v + 2
+func fanOut(ctx context.Context, n int, in chan int) []chan int {
+	channels := make([]chan int, n)
+	for i := 0; i < n; i++ {
+		out := make(chan int)
+		channels[i] = out
+		go func() {
+			defer close(out)
+			for {
 				select {
 				case <-ctx.Done():
 					return
-				case <-time.After(200 * time.Millisecond):
+				case v, ok := <-in:
+					if !ok {
+						return
+					}
+					res := v * 2
 					select {
 					case <-ctx.Done():
 						return
-					case out <- res:
+					case <-time.After(120 * time.Millisecond):
+						select {
+						case <-ctx.Done():
+							return
+						case out <- res:
+						}
 					}
 				}
 			}
-		}
-	}()
-	return out
-}
-func fanOut(ctx context.Context, n int, chIn <-chan int) []chan int {
-	channels := make([]chan int, n)
-	for i := range n {
-		channels[i] = add(ctx, chIn)
+		}()
 	}
-
 	return channels
 }
 
@@ -89,17 +83,23 @@ func fanIn(ctx context.Context, channels []chan int) chan int {
 		wg.Wait()
 		close(out)
 	}()
-	return out
-}
 
+	return out
+
+}
 func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	data := []int{9, 8, 7, 6, 5, 4, 3, 2, 1}
-	n := 4 //lenth slice channels
-	channels := fanOut(ctx, n, generator(ctx, data))
+	data := []int{1, 2, 3, 4, 5, 6, 7, 8, 9}
+	genCh := generator(ctx, data)
+	n := 4 //number workers
+	channels := fanOut(ctx, n, genCh)
 	streamCh := fanIn(ctx, channels)
+
 	for v := range streamCh {
-		fmt.Println("result: ", v)
+		fmt.Println(v)
 	}
+
+	fmt.Println("End of Programm")
+
 }
